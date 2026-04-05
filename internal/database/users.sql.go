@@ -7,13 +7,13 @@ package database
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/google/uuid"
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (username, email) VALUES ($1, $2) RETURNING id, username, email, created_at
+INSERT INTO users (username, email,api_key) VALUES ($1, $2, 
+encode(sha256(random()::text::bytea), 'hex')) RETURNING id, username, email, created_at, updated_at, api_key
 `
 
 type CreateUserParams struct {
@@ -21,27 +21,40 @@ type CreateUserParams struct {
 	Email    string
 }
 
-type CreateUserRow struct {
-	ID        uuid.UUID
-	Username  string
-	Email     string
-	CreatedAt sql.NullTime
-}
-
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
 	row := q.db.QueryRowContext(ctx, createUser, arg.Username, arg.Email)
-	var i CreateUserRow
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
 		&i.Email,
 		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ApiKey,
+	)
+	return i, err
+}
+
+const userByApiKey = `-- name: UserByApiKey :one
+SELECT id, username, email, created_at, updated_at, api_key FROM users WHERE api_key = $1
+`
+
+func (q *Queries) UserByApiKey(ctx context.Context, apiKey string) (User, error) {
+	row := q.db.QueryRowContext(ctx, userByApiKey, apiKey)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ApiKey,
 	)
 	return i, err
 }
 
 const userByEmail = `-- name: UserByEmail :one
-SELECT id FROM users WHERE email = $1 LIMIT 1
+SELECT id FROM users WHERE email = $1
 `
 
 func (q *Queries) UserByEmail(ctx context.Context, email string) (uuid.UUID, error) {

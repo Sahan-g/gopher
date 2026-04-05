@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+
+	"github.com/Sahan-g/gopher/internal/auth"
+	"github.com/Sahan-g/gopher/internal/database"
 	"github.com/go-playground/validator/v10"
 	"github.com/lib/pq"
-	"github.com/Sahan-g/gopher/internal/database"
 )
 
 var validate = validator.New()
@@ -45,6 +47,20 @@ func (apicfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Reques
 		respondWithError(w, 500, err.Error())
 		return
 	}
+	
+	respondWithJson(w, 201, dbUsertoUser(user))
+}
 
-	respondWithJson(w, 201, user)
+func (apicfg *apiConfig) handlerGetUserByApiKey(w http.ResponseWriter, r *http.Request) {
+	apiKey,err := auth.GetApiKey(r.Header)
+	if err != nil{
+		respondWithError(w,403,err.Error())
+	}
+	user,err:= apicfg.DB.UserByApiKey(r.Context(),apiKey)
+	if err!= nil{
+		respondWithError(w,400,err.Error())
+		return
+	}
+	respondWithJson(w,200,dbUsertoUser(user))
+
 }

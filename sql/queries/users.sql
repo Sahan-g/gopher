@@ -1,5 +1,9 @@
 -- name: CreateUser :one 
-INSERT INTO users (username, email) VALUES ($1, $2) RETURNING id, username, email, created_at;
+INSERT INTO users (username, email,api_key) VALUES ($1, $2, 
+encode(sha256(random()::text::bytea), 'hex')) RETURNING *;
 
 -- name: UserByEmail :one
-SELECT id FROM users WHERE email = $1 LIMIT 1;
+SELECT id FROM users WHERE email = $1;
+
+-- name: UserByApiKey :one
+SELECT * FROM users WHERE api_key = $1; 
